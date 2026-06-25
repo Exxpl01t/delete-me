@@ -281,28 +281,12 @@ static int save_file(const char *path) {
 static int read_key(void) {
     static char esc_buf[ESC_BUF_SIZE];
     static int esc_len = 0;
+
     char c;
-    int n;
+    int n = read(STDIN_FILENO, &c, 1);
+    if (n <= 0) return KEY_NONE;
 
-    // Main loop to handle spurious 0-byte reads
-    while (1) {
-        n = read(STDIN_FILENO, &c, 1);
-        if (n > 0) {
-            // We have a real byte, break out to process it
-            break;
-        } else if (n == 0) {
-            // This is the problematic case: a read with 0 bytes.
-            // Don't treat it as an error. Just wait a tiny bit and try again.
-            plat_delay_ms(5);
-            continue;
-        } else { // n < 0 (error)
-            return KEY_NONE;
-        }
-    }
-
-    /* We now have a valid character in 'c' to process */
-
-    /* If we're in the middle of an escape sequence, continue parsing */
+    /* Handle escape sequences */
     if (esc_len > 0 || c == 27) {
         esc_buf[esc_len++] = c;
 
@@ -323,29 +307,26 @@ static int read_key(void) {
             if (memcmp(esc_buf, "\033[4~", 4) == 0) { esc_len = 0; return KEY_END; }
         }
 
-        /* If we have a complete escape sequence but it doesn't match, reset */
-        if (esc_len >= ESC_BUF_SIZE - 1) {
-            esc_len = 0;
-        }
-
-        /* If this is a standalone ESC key (only one byte) */
-        if (esc_len == 1 && c == 27) {
-            /* Check if more data is available (non-blocking) */
+        /* Plain ESC (no more bytes coming) */
+        if (esc_len == 1) {
+            /* Check for more input */
             char c2;
             int n2 = read(STDIN_FILENO, &c2, 1);
             if (n2 <= 0) {
                 esc_len = 0;
                 return KEY_ESC;
             }
-            /* More data means it's an escape sequence, keep parsing */
             esc_buf[esc_len++] = c2;
         }
 
-        /* Still building a sequence, wait for more data */
+        /* Partial sequence or unknown - keep waiting or reset */
+        if (esc_len >= ESC_BUF_SIZE - 1) {
+            esc_len = 0;  /* Buffer overflow, reset */
+        }
         return KEY_NONE;
     }
 
-    /* Regular keys - this is now reachable */
+    /* Regular keys */
     if (c == 127 || c == 8) return KEY_BACKSPACE;
     if (c == '\r' || c == '\n') return KEY_ENTER;
     if (c >= 32 && c < 127) return c;
