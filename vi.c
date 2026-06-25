@@ -133,7 +133,7 @@ static struct {
 } E;
 
 /* ========== Output Buffering ========== */
-static char s_out_buf[8192];
+static char s_out_buf[1024];
 static int s_out_pos = 0;
 
 static void out_flush(void) {
@@ -260,7 +260,7 @@ static int save_file(const char *path) {
 
     FILE *f = fopen(path, "w");
     if (!f) {
-        snprintf(E.status, sizeof(E.status), "Cannot write: %s", path);
+        snprintf(E.status, sizeof(E.status), "Cannot write: %.113s", path);
         return 0;
     }
 
@@ -273,7 +273,7 @@ static int save_file(const char *path) {
     if (path != E.filepath) {
         strncpy(E.filepath, path, sizeof(E.filepath) - 1);
     }
-    snprintf(E.status, sizeof(E.status), "\"%s\" %d lines written", E.filepath, E.line_count);
+    snprintf(E.status, sizeof(E.status), "\"%.108s\" %d lines written", E.filepath, E.line_count);
     return 1;
 }
 
@@ -530,7 +530,7 @@ static void draw_screen(void) {
     } else if (E.status[0]) {
         snprintf(status_left, sizeof(status_left), "%s", E.status);
     } else {
-        snprintf(status_left, sizeof(status_left), "%s %s%s",
+        snprintf(status_left, sizeof(status_left), "%s %.110s%s",
                  mode_str,
                  E.filepath[0] ? E.filepath : "[No Name]",
                  E.modified ? " [+]" : "");
