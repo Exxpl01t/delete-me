@@ -284,7 +284,7 @@ static int read_key(void) {
 
     char c;
     int n = read(STDIN_FILENO, &c, 1);
-    if (n <= 0) return KEY_NONE;
+    // if (n <= 0) return KEY_NONE;
 
     /* Handle escape sequences */
     if (esc_len > 0 || c == 27) {
